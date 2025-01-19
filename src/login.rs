@@ -1,19 +1,10 @@
 use std::fmt::Debug;
 //The purpose of this module is to get the login (.AuthCookie) cookie to be used on future requests, along with providing the ASP.net session id and the long cookie
-use axum::{
-    extract::Extension,
-    http::{Request, StatusCode},
-    response::IntoResponse,
-    routing::get,
-    Router
-};
-use axum::routing::head;
 use reqwest::Client;
-use reqwest::cookie::{Cookie, Jar};
-use tower_http::trace::TraceLayer;
 use reqwest::header;
-use reqwest::header::SET_COOKIE;
 use scraper::{Html, Selector};
+use std::time::Duration;
+use std::thread;
 //This should return the ASP.NET_SessionID, request id, and hidden request id, in that order
 pub async fn get_session_cookie() -> (String, String, String) {
     let client = Client::new();
@@ -51,23 +42,23 @@ pub async fn get_login_cookie(session_cookies: (String, String, String), usernam
     let ver_hidden_token = session_cookies.2;
     let mut headers = header::HeaderMap::new();
     let cookie_header = String::from("ASP.NET_SessionId=".to_owned() + asp_session_id.as_str() + "; SPIHACSiteCode=; __RequestVerificationToken_L0hvbWVBY2Nlc3M1=" + ver_token.as_str());
+    headers.insert("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0".parse().unwrap());
     headers.insert("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8".parse().unwrap());
-    headers.insert("Accept-Encoding", "gzip, deflate, br, zstd".parse().unwrap());
     headers.insert("Accept-Language", "en-US,en;q=0.5".parse().unwrap());
-    headers.insert("Connection", "keep-alive".parse().unwrap());
-    headers.insert("Content-Length", "333".parse().unwrap());
-    headers.insert("Content-Type", "application/x-www-form-urlencoded".parse().unwrap());
-    headers.insert(header::COOKIE, cookie_header.parse().unwrap());
-    headers.insert("DNT", "1".parse().unwrap());
-    headers.insert("Origin", "https://homeaccess.katyisd.org".parse().unwrap());
+    headers.insert("Accept-Encoding", "gzip, deflate, br, zstd".parse().unwrap());
     headers.insert("Referer", "https://homeaccess.katyisd.org/HomeAccess/Account/LogOn?ReturnUrl=%2fHomeAccess%2f".parse().unwrap());
+    headers.insert("Content-Type", "application/x-www-form-urlencoded".parse().unwrap());
+    headers.insert("Origin", "https://homeaccess.katyisd.org".parse().unwrap());
+    headers.insert("DNT", "1".parse().unwrap());
+    headers.insert("Sec-GPC", "1".parse().unwrap());
+    headers.insert("Connection", "keep-alive".parse().unwrap());
+    headers.insert(header::COOKIE, cookie_header.parse().unwrap());
+    headers.insert("Upgrade-Insecure-Requests", "1".parse().unwrap());
     headers.insert("Sec-Fetch-Dest", "document".parse().unwrap());
     headers.insert("Sec-Fetch-Mode", "navigate".parse().unwrap());
     headers.insert("Sec-Fetch-Site", "same-origin".parse().unwrap());
     headers.insert("Sec-Fetch-User", "?1".parse().unwrap());
-    headers.insert("Sec-GPC", "1".parse().unwrap());
-    headers.insert("Upgrade-Insecure-Requests", "1".parse().unwrap());
-    headers.insert("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0".parse().unwrap());
+    headers.insert("Priority", "u=0, i".parse().unwrap());
 
     let client = reqwest::Client::builder()
         .build()
@@ -79,26 +70,29 @@ pub async fn get_login_cookie(session_cookies: (String, String, String), usernam
     );
     // println!("{:?}", headers);
     // println!("{}", body);
-    // for header in headers {
-    //     println!("{}: {}", header.0.unwrap().as_str().replace("Some(\"", "").replace("\"", "") ,header.1.to_str().expect("e").replace("\"", ""));
-    // }
-    // println!("{}", body);
     let res = client.post("https://homeaccess.katyisd.org/HomeAccess/Account/LogOn?ReturnUrl=%2fHomeAccess")
         .headers(headers)
         .body(body)
         .send()
         .await;
+    if let Err(e) = &res {
+        println!("Error during login request: {:?}", e);
+    }
+
+    let response = res.unwrap(); // Now unwrap here
+
+    println!("Response status: {:?}", response.status());
     // println!("{}", res.unwrap().text().await.expect("e"));
     // for value in res.unwrap().headers().get_all(SET_COOKIE).iter(){
     //     println!("{}", value.to_str().unwrap());
     // }
-    for cookie in res.unwrap().cookies() {
-        println!("{} - {}", cookie.name(), cookie.value());
-        if(cookie.name().eq(".AuthCookie")) {
-            println!("{} = {}", cookie.name(), cookie.value());
-            return String::from(cookie.value());
-        }
-    }
+    // for cookie in result.unwrap().cookies() {
+    //     println!("{} - {}", cookie.name(), cookie.value());
+    //     if(cookie.name().eq(".AuthCookie")) {
+    //         println!("{} = {}", cookie.name(), cookie.value());
+    //         return String::from(cookie.value());
+    //     }
+    // }
     return String::from("No Token Found");
 }
 

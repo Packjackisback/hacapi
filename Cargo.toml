@@ -4,10 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = {version = "0.5.13", features = ["headers"]}
+#axum = {version = "0.5.13", features = ["headers"]}
 tokio = { version = "1.0", features = ["full"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tower-http = { version = "0.6.2", features = ["cors", "trace"] }
+#tracing = "0.1"
+#tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 reqwest = { version = "0.12.12", features = ["cookies"] }
 scraper = "0.22.0"
